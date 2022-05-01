@@ -194,6 +194,7 @@
     <ClInclude Include="graphics\OpenGLWnd.h" />
     <ClInclude Include="MainFrm.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="renderer.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
@@ -213,11 +214,15 @@
     <ResourceCompile Include="CudaRenderer.rc" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\x64\Release\CudaRenderer.dll" />
     <None Include="res\CudaRenderer.rc2" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\CudaRenderer.ico" />
     <Image Include="res\Toolbar.bmp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="..\x64\Release\CudaRenderer.lib" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

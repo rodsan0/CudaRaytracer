@@ -39,6 +39,9 @@
     <ClInclude Include="graphics\OpenGLWnd.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="renderer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CudaRenderer.cpp">
@@ -66,6 +69,7 @@
     <None Include="res\CudaRenderer.rc2">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="..\x64\Release\CudaRenderer.dll" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\CudaRenderer.ico">
@@ -74,5 +78,10 @@
     <Image Include="res\Toolbar.bmp">
       <Filter>Resource Files</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="..\x64\Release\CudaRenderer.lib">
+      <Filter>Header Files</Filter>
+    </Library>
   </ItemGroup>
 </Project>

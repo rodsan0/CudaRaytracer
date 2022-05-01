@@ -39,6 +39,8 @@ public:
 	void OnGLDraw(CDC* pDC);
 
 private:
+	bool initialized = false;
+	float start;
 	Renderer renderer;
 };
 

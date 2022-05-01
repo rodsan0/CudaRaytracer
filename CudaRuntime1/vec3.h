@@ -4,6 +4,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <iostream>
+#define DLLEXPORT __declspec(dllexport)
 
 class vec3  {
 

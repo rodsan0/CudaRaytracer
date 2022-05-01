@@ -1,11 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.31019.35
+# Visual Studio Version 17
+VisualStudioVersion = 17.1.32407.343
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CudaRuntime1", "CudaRuntime1\CudaRuntime1.vcxproj", "{6DF4CA50-584F-4470-ACE7-A84F5C6C4F64}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CudaRenderer", "CudaRuntime1\CudaRuntime1.vcxproj", "{6DF4CA50-584F-4470-ACE7-A84F5C6C4F64}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CudaRenderer", "CudaRenderer\CudaRenderer.vcxproj", "{A6FC4EDA-ACE1-4CA5-B9A4-6E7CECA1F837}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RaytraceViewer", "CudaRenderer\CudaRenderer.vcxproj", "{A6FC4EDA-ACE1-4CA5-B9A4-6E7CECA1F837}"
 	ProjectSection(ProjectDependencies) = postProject
 		{6DF4CA50-584F-4470-ACE7-A84F5C6C4F64} = {6DF4CA50-584F-4470-ACE7-A84F5C6C4F64}
 	EndProjectSection

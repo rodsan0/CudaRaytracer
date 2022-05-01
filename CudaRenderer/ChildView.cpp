@@ -6,10 +6,12 @@
 #include "framework.h"
 #include "CudaRenderer.h"
 #include "ChildView.h"
+#include "renderer.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
+#include <iostream>
 
 
 // CChildView
@@ -49,27 +51,31 @@ BOOL CChildView::PreCreateWindow(CREATESTRUCT& cs)
 
 void CChildView::OnGLDraw(CDC* pDC)
 {
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-
 	int width, height;
 	GetSize(width, height);
+	if (!initialized) {
+		renderer.nx = width;
+		renderer.ny = height;
+		initialized = true;
+		start = 0;
+		renderer.Render_Init();
+	}
+
+
+	renderer.render();
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	glOrtho(0, width, 0, height, -1, 1);
-
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-
-	renderer.render();
-
-
+	
 	glRasterPos3i(0, 0, 0);
 	glDrawPixels(renderer.nx, renderer.ny,
 		GL_RGB, GL_FLOAT, renderer.fb);
-
 	glFlush();
+	Invalidate();
 
 }
