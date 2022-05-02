@@ -76,9 +76,9 @@ DLLEXPORT __global__ void render_hidden(vec3* fb, int max_x, int max_y, int ns, 
     curandState local_rand_state = rand_state[pixel_index];
     vec3 col(0, 0, 0);
     for (int s = 0; s < ns; s++) {
-        float u = float(i) / float(max_x);
-        float v = float(j) / float(max_y);
-        ray r = (*cam)->get_ray(u, v, &local_rand_state);
+        float u = float(i + curand_uniform(&local_rand_state)) / float(max_x);
+        float v = float(j + curand_uniform(&local_rand_state)) / float(max_y);
+        ray r = (*cam)->get_ray_random(u, v, &local_rand_state);
         col += color(r, world, &local_rand_state);
     }
     rand_state[pixel_index] = local_rand_state;
@@ -100,18 +100,20 @@ DLLEXPORT __global__ void rand_init(curandState* rand_state) {
 DLLEXPORT __global__ void create_world(hitable** d_list, hitable** d_world, camera** d_camera, int nx, int ny, curandState* rand_state) {
     if (threadIdx.x == 0 && blockIdx.x == 0) {
         curandState local_rand_state = *rand_state;
-        d_list[0] = new sphere(vec3(0, -1001.0, -1), 1000, new lambertian(vec3(0.5, 0.5, 0.5)));
+        d_list[0] = new sphere(vec3(0, -1001.0, -1), 1000, new metal(vec3(0.7, 0.6, 0.5), 0.0));
 
         int i = 1;
         d_list[1] = new sphere(vec3(3, 1, 0), 1.0, new metal(vec3(0.7, 0.6, 0.5), 0.0));
         d_list[2] = new sphere(vec3(-3, 1, 0), 1.0, new lambertian(vec3(0.4, 0.2, 0.1)));
+        d_list[3] = new sphere(vec3(3, 1, 0), 1.0, new metal(vec3(0.7, 0.6, 0.5), 0.0));
+        d_list[4] = new sphere(vec3(-3, 1, 0), 1.0, new dielectric(1.5));
         *rand_state = local_rand_state;
-        *d_world = new hitable_list(d_list, 3);
+        *d_world = new hitable_list(d_list, 5);
 
         vec3 lookfrom(13, 2, 3);
         vec3 lookat(0, 0, 0);
         float dist_to_focus = 10.0; (lookfrom - lookat).length();
-        float aperture = 0.1;
+        float aperture = 0.05;
         *d_camera = new camera(lookfrom,
             lookat,
             vec3(0, 1, 0),
@@ -136,7 +138,8 @@ DLLEXPORT __global__ void free_world(hitable** d_list, hitable** d_world, camera
 DLLEXPORT __global__ void update_world(float time, hitable** d_list) {
     ((sphere*)d_list[1])->center = vec3(3*cos(time), .5*sin(5*time)+1, 3 * sin(time));
     ((sphere*)d_list[2])->center = vec3(-3 * cos(time), .5*cos(5*time)+1, -3 * sin(time));
-
+    ((sphere*)d_list[3])->center = vec3(3 * sin(-1*time), .5 * sin(5 * time) + 1, 3 * cos(time));
+    ((sphere*)d_list[4])->center = vec3(-3 * sin(-1*time), .5 * cos(5 * time) + 1, -3 * cos(time));
 }
 
 
@@ -167,7 +170,7 @@ void Renderer::Render_Init() {
     checkCudaErrors(cudaDeviceSynchronize());
 
     // make our world of hitables & the camera
-    int num_hitables = 3;
+    int num_hitables = 5;
     checkCudaErrors(cudaMallocManaged((void**)&d_list, num_hitables * sizeof(hitable*)));
     checkCudaErrors(cudaMalloc((void**)&d_world, sizeof(hitable*)));
     checkCudaErrors(cudaMalloc((void**)&d_camera, sizeof(camera*)));

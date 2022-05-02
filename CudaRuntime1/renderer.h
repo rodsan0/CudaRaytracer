@@ -10,7 +10,7 @@ public:
     int ny = 800;
     int tx;
     int ty;
-    int ns = 1;
+    int ns = 10;
     float i = 0;
     hitable** d_list;
     hitable** d_world;
