@@ -16,6 +16,21 @@ public:
     hitable** d_world;
     camera** d_camera;
 
+    struct Keys {
+        bool left;
+        bool right;
+        bool up;
+        bool down;
+
+        bool w;
+        bool s;
+        bool a;
+        bool d;
+
+        bool space;
+        bool shift;
+    } keys;
+
     vec3* fb = nullptr;
     size_t fb_size;
 

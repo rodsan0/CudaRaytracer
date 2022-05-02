@@ -110,11 +110,13 @@ DLLEXPORT __global__ void create_world(hitable** d_list, hitable** d_world, came
         *rand_state = local_rand_state;
         *d_world = new hitable_list(d_list, 5);
 
-        vec3 lookfrom(13, 2, 3);
+        vec3 lookfrom(13, 2, 0);
         vec3 lookat(0, 0, 0);
-        float dist_to_focus = 10.0; (lookfrom - lookat).length();
+
+        float dist_to_focus = (lookfrom - lookat).length();
         float aperture = 0.05;
-        *d_camera = new camera(lookfrom,
+        *d_camera = new camera(
+            lookfrom,
             lookat,
             vec3(0, 1, 0),
             30.0,
@@ -147,10 +149,93 @@ Renderer::Renderer() {
 
 }
 
+DLLEXPORT __global__ void UpdateCamera(float time, camera** camera, double aspect_ratio, Renderer::Keys keys) {
+    vec3 origin = camera[0]->origin;
+    vec3 lookat = camera[0]->lookat;
+    vec3 up = camera[0]->up;
+
+    vec3 dir = unit_vector(lookat - origin);
+    vec3 z = cross(dir, up);
+
+    if (keys.up) {
+        origin += dir;
+        lookat += dir;
+    }
+    if (keys.down) {
+        origin -= dir;
+        lookat -= dir;
+    }
+    if (keys.left) {
+        origin -= z;
+        lookat -= z;
+    }
+    if (keys.right) {
+        origin += z;
+        lookat += z;
+    }
+    if (keys.space) {
+        origin += up;
+        lookat += up;
+    }
+    if (keys.shift) {
+        origin -= up;
+        lookat -= up;
+    }
+
+    const size_t rot_steps = 100;
+    const double angle = 2 * M_PI / rot_steps;
+
+     
+    if (keys.w) {
+        lookat = vec3(
+            origin.x() + (lookat.x() - origin.x()) * cos(-angle) - (lookat.y() - origin.y()) * sin(-angle),
+            origin.y() + (lookat.x() - origin.x()) * sin(-angle) + (lookat.y() - origin.y()) * cos(-angle),
+            lookat.z()
+        );
+    }
+    if (keys.a) {
+        lookat = vec3(
+            origin.x() + (lookat.x() - origin.x()) * cos(angle) + (lookat.z() - origin.z()) * sin(angle),
+            lookat.y(),
+            origin.z() - (lookat.x() - origin.x()) * sin(angle) + (lookat.z() - origin.z()) * cos(angle)
+        );
+    }
+    if (keys.s) {
+        lookat = vec3(
+            origin.x() + (lookat.x() - origin.x()) * cos(angle) - (lookat.y() - origin.y()) * sin(angle),
+            origin.y() + (lookat.x() - origin.x()) * sin(angle) + (lookat.y() - origin.y()) * cos(angle),
+            lookat.z()
+        );
+    }
+    if (keys.d) {
+        lookat = vec3(
+            origin.x() + (lookat.x() - origin.x()) * cos(-angle) + (lookat.z() - origin.z()) * sin(-angle),
+            lookat.y(),
+            origin.z() - (lookat.x() - origin.x()) * sin(-angle) + (lookat.z() - origin.z()) * cos(-angle)
+        );
+    }
+
+    camera[0]->lookat = lookat;
+    camera[0]->origin = origin;
+
+    float dist_to_focus = (origin - lookat).length();
+    float aperture = 0.05;
+
+    camera[0]->update_camera(
+        origin,
+        lookat,
+        camera[0]->up,
+        30.0,
+        aspect_ratio,
+        aperture,
+        dist_to_focus
+    );
+}
+
 
 void Renderer::Render_Init() {
     tx = 4;
-    ty = 256;
+    ty = 128;
 
     std::cerr << "Rendering a " << nx << "x" << ny << " image ";
     std::cerr << "in " << tx << "x" << ty << " blocks.\n";
@@ -206,13 +291,15 @@ void Renderer::render() {
     // Render our buffer
     dim3 blocks(nx / tx + 1, ny / ty + 1);
     dim3 threads(tx, ty);
-    render_init << <blocks, threads >> > (nx, ny, d_rand_state);
+    render_init <<<blocks, threads>>>(nx, ny, d_rand_state);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
     render_hidden<<<blocks, threads >> > (fb, nx, ny, ns, d_camera, d_world, d_rand_state);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
-    update_world << <1, 1 >> > (i, d_list);
+    update_world <<<1, 1 >>>(i, d_list);
+    checkCudaErrors(cudaDeviceSynchronize());
+    UpdateCamera << <1, 1 >> > (i, d_camera, float(nx) / float(ny), keys);
     checkCudaErrors(cudaDeviceSynchronize());
     i += 1.f/15;
 }
