@@ -1,19 +1,20 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
-
-#include <stdio.h>
+#include <curand_kernel.h>
 
 #include <iostream>
+#include <stdio.h>
 #include <time.h>
 #include <float.h>
+
 #include "vec3.h"
 #include "ray.h"
 #include "sphere.h"
 #include "hitable_list.h"
 #include "camera.h"
 #include "renderer.h"
-#include <curand_kernel.h>
 
+#define RND (curand_uniform(&local_rand_state))
 #define DLLEXPORT __declspec(dllexport)
 
 // limited version of checkCudaErrors from helper_cuda.h in CUDA examples
@@ -21,9 +22,6 @@
 
 DLLEXPORT void check_cuda(cudaError_t result, char const *const func, const char *const file, int const line) {
     if (result) {
-        std::cerr << "CUDA error = " << static_cast<unsigned int>(result) << " at " <<
-            file << ":" << line << " '" << func << "' \n";
-        // Make sure we call CUDA Device Reset before exiting
         cudaDeviceReset();
         exit(99);
     }
@@ -52,19 +50,16 @@ DLLEXPORT __device__ vec3 color(const ray& r, hitable **world, curandState* loca
             return cur_attenuation * c;
         }
     }
-    return vec3(0.0, 0.0, 0.0); // exceeded recursion
+    // hit nothing
+    return vec3(0.0, 0.0, 0.0);
 }
-
 
 DLLEXPORT __global__ void render_init(int max_x, int max_y, curandState* rand_state) {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
     if ((i >= max_x) || (j >= max_y)) return;
     int pixel_index = j * max_x + i;
-    // Original: Each thread gets same seed, a different sequence number, no offset
-    // curand_init(1984, pixel_index, 0, &rand_state[pixel_index]);
-    // BUGFIX, see Issue#2: Each thread gets different seed, same sequence for
-    // performance improvement of about 2x!
+
     curand_init(1984 + pixel_index, 0, 0, &rand_state[pixel_index]);
 }
 
@@ -95,8 +90,6 @@ DLLEXPORT __global__ void rand_init(curandState* rand_state) {
     }
 }
 
-#define RND (curand_uniform(&local_rand_state))
-
 DLLEXPORT __global__ void create_world(hitable** d_list, hitable** d_world, camera** d_camera, int nx, int ny, curandState* rand_state) {
     if (threadIdx.x == 0 && blockIdx.x == 0) {
         curandState local_rand_state = *rand_state;
@@ -126,8 +119,6 @@ DLLEXPORT __global__ void create_world(hitable** d_list, hitable** d_world, came
     }
 }
 
-
-
 DLLEXPORT __global__ void free_world(hitable** d_list, hitable** d_world, camera** d_camera) {
     for (int i = 0; i < 3; i++) {
         delete ((sphere*)d_list[i])->mat_ptr;
@@ -149,7 +140,7 @@ Renderer::Renderer() {
 
 }
 
-DLLEXPORT __global__ void UpdateCamera(float time, camera** camera, double aspect_ratio, Renderer::Keys keys) {
+DLLEXPORT __global__ void update_camera(float time, camera** camera, double aspect_ratio, Renderer::Keys keys) {
     vec3 origin = camera[0]->origin;
     vec3 lookat = camera[0]->lookat;
     vec3 up = camera[0]->up;
@@ -237,9 +228,6 @@ void Renderer::Render_Init() {
     tx = 4;
     ty = 128;
 
-    std::cerr << "Rendering a " << nx << "x" << ny << " image ";
-    std::cerr << "in " << tx << "x" << ty << " blocks.\n";
-
     int num_pixels = nx * ny;
     fb_size = num_pixels * 3 * sizeof(float);
 
@@ -250,7 +238,7 @@ void Renderer::Render_Init() {
     checkCudaErrors(cudaMalloc((void**)&d_rand_state2, 1 * sizeof(curandState)));
 
     // we need that 2nd random state to be initialized for the world creation
-    rand_init << <1, 1 >> > (d_rand_state2);
+    rand_init<<<1, 1>>>(d_rand_state2);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
@@ -259,12 +247,12 @@ void Renderer::Render_Init() {
     checkCudaErrors(cudaMallocManaged((void**)&d_list, num_hitables * sizeof(hitable*)));
     checkCudaErrors(cudaMalloc((void**)&d_world, sizeof(hitable*)));
     checkCudaErrors(cudaMalloc((void**)&d_camera, sizeof(camera*)));
-    create_world << <1, 1 >> > (d_list, d_world, d_camera, nx, ny, d_rand_state2);
+    create_world<<<1, 1>>>(d_list, d_world, d_camera, nx, ny, d_rand_state2);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
     dim3 blocks(nx / tx + 1, ny / ty + 1);
     dim3 threads(tx, ty);
-    render_init << <blocks, threads >> > (nx, ny, d_rand_state);
+    render_init<<<blocks, threads>>>(nx, ny, d_rand_state);
     checkCudaErrors(cudaDeviceSynchronize());
 
 }
@@ -272,7 +260,7 @@ void Renderer::Render_Init() {
 Renderer::~Renderer() {
     // clean up
     checkCudaErrors(cudaDeviceSynchronize());
-    free_world << <1, 1 >> > (d_list, d_world, d_camera);
+    free_world<<<1, 1>>>(d_list, d_world, d_camera);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaFree(d_camera));
     checkCudaErrors(cudaFree(d_world));
@@ -285,18 +273,18 @@ Renderer::~Renderer() {
 }
 
 void Renderer::render() {
-    // Render our buffer
+    // render buffer
     dim3 blocks(nx / tx + 1, ny / ty + 1);
     dim3 threads(tx, ty);
-    render_init <<<blocks, threads>>>(nx, ny, d_rand_state);
+    render_init<<<blocks, threads>>>(nx, ny, d_rand_state);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
-    render_hidden<<<blocks, threads >> > (fb, nx, ny, ns, d_camera, d_world, d_rand_state);
+    render_hidden<<<blocks, threads>>>(fb, nx, ny, ns, d_camera, d_world, d_rand_state);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
-    update_world <<<1, 1 >>>(i, d_list);
+    update_world<<<1, 1>>>(i, d_list);
     checkCudaErrors(cudaDeviceSynchronize());
-    UpdateCamera << <1, 1 >> > (i, d_camera, float(nx) / float(ny), keys);
+    update_camera<<<1, 1>>>(i, d_camera, float(nx) / float(ny), keys);
     checkCudaErrors(cudaDeviceSynchronize());
     i += 1.f/15;
 }
