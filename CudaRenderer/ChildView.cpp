@@ -7,12 +7,16 @@
 #include "CudaRenderer.h"
 #include "ChildView.h"
 #include "renderer.h"
+#include "MainFrm.h"
+
+#include <string>
+#include <iostream>
+#include <sstream>
+#include <iomanip>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
-#include <iostream>
-
 
 // CChildView
 
@@ -52,9 +56,10 @@ void CChildView::OnGLDraw(CDC* pDC)
 {
 	int width, height;
 	GetSize(width, height);
+	renderer.nx = width;
+	renderer.ny = height;
 	if (!initialized) {
-		renderer.nx = width;
-		renderer.ny = height;
+
 		initialized = true;
 		start = 0;
 		renderer.Render_Init();
@@ -74,11 +79,29 @@ void CChildView::OnGLDraw(CDC* pDC)
 	glDrawPixels(renderer.nx, renderer.ny,
 		GL_RGB, GL_FLOAT, renderer.fb);
 	glFlush();
+
+	// fps calculation
+
+	const auto now = std::chrono::high_resolution_clock::now();
+	const std::chrono::duration<double, std::milli> diff = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_call);
+	last_call = now;
+
+	const double fps = 1000 / diff.count();
+
+	// write FPSs to window title
+	std::wstringstream ss;
+	ss << std::setprecision(3);
+	ss << L"Cuda Renderer (";
+	ss << fps;
+	ss << L" fps)";
+
+	CMainFrame* pFrame = (CMainFrame*)GetParent();
+	pFrame->SetAppName(ss.str().c_str());
+	pFrame->OnUpdateFrameTitle(TRUE);
 	
 	Invalidate();
 
 }
-
 
 void CChildView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 {

@@ -9,6 +9,8 @@
 
 #include "renderer.h"
 
+#include <chrono>
+
 
 // CChildView window
 
@@ -42,6 +44,7 @@ private:
 	bool initialized = false;
 	float start;
 	Renderer renderer;
+	std::chrono::time_point<std::chrono::high_resolution_clock> last_call;
 public:
 	afx_msg void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
 	afx_msg void OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);
