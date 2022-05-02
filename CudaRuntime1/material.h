@@ -1,12 +1,13 @@
-#ifndef MATERIALH
-#define MATERIALH
+#pragma once
+
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#include <curand_kernel.h>
 
 struct hit_record;
 
 #include "ray.h"
 #include "hitable.h"
-#include <curand_kernel.h>
-
 
 __device__ float schlick(float cosine, float ref_idx) {
     float r0 = (1.0f - ref_idx) / (1.0f + ref_idx);
@@ -15,7 +16,7 @@ __device__ float schlick(float cosine, float ref_idx) {
 }
 
 __device__ bool refract(const vec3& v, const vec3& n, float ni_over_nt, vec3& refracted) {
-    vec3 uv = unit_vector(v);
+    vec3 uv = normalize(v);
     float dt = dot(uv, n);
     float discriminant = 1.0f - ni_over_nt * ni_over_nt * (1 - dt * dt);
     if (discriminant > 0) {
@@ -62,7 +63,7 @@ class metal : public material {
 public:
     __device__ metal(const vec3& a, float f) : albedo(a) { if (f < 1) fuzz = f; else fuzz = 1; }
     __device__ virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, curandState* local_rand_state) const {
-        vec3 reflected = reflect(unit_vector(r_in.direction()), rec.normal);
+        vec3 reflected = reflect(normalize(r_in.direction()), rec.normal);
         scattered = ray(rec.p, reflected + fuzz * random_in_unit_sphere(local_rand_state));
         attenuation = albedo;
         return (dot(scattered.direction(), rec.normal) > 0.0f);
@@ -110,4 +111,3 @@ public:
 
     float ref_idx;
 };
-#endif

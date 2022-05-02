@@ -1,9 +1,12 @@
-#ifndef SPHEREH
-#define SPHEREH
+#pragma once
+
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#include <curand_kernel.h>
 
 #include "hitable.h"
 #include "material.h"
-#include <curand_kernel.h>
+#include "vec3.h"
 
 class sphere : public hitable {
 public:
@@ -42,5 +45,3 @@ __device__ bool sphere::hit(const ray& r, float t_min, float t_max, hit_record& 
     return false;
 }
 
-
-#endif

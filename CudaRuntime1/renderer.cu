@@ -46,7 +46,7 @@ DLLEXPORT __device__ vec3 color(const ray& r, hitable **world, curandState* loca
             }
         }
         else {
-            vec3 unit_direction = unit_vector(cur_ray.direction());
+            vec3 unit_direction = normalize(cur_ray.direction());
             float t = 0.5f * (unit_direction.y() + 1.0f);
             vec3 c = (1.0f - t) * vec3(1.0, 1.0, 1.0) + t * vec3(0.5, 0.7, 1.0);
             return cur_attenuation * c;
@@ -102,7 +102,6 @@ DLLEXPORT __global__ void create_world(hitable** d_list, hitable** d_world, came
         curandState local_rand_state = *rand_state;
         d_list[0] = new sphere(vec3(0, -1001.0, -1), 1000, new metal(vec3(0.7, 0.6, 0.5), 0.0));
 
-        int i = 1;
         d_list[1] = new sphere(vec3(3, 1, 0), 1.0, new metal(vec3(0.7, 0.6, 0.5), 0.0));
         d_list[2] = new sphere(vec3(-3, 1, 0), 1.0, new lambertian(vec3(0.4, 0.2, 0.1)));
         d_list[3] = new sphere(vec3(3, 1, 0), 1.0, new metal(vec3(0.7, 0.6, 0.5), 0.0));
@@ -122,7 +121,8 @@ DLLEXPORT __global__ void create_world(hitable** d_list, hitable** d_world, came
             30.0,
             float(nx) / float(ny),
             aperture,
-            dist_to_focus);
+            dist_to_focus
+        );
     }
 }
 
@@ -154,7 +154,7 @@ DLLEXPORT __global__ void UpdateCamera(float time, camera** camera, double aspec
     vec3 lookat = camera[0]->lookat;
     vec3 up = camera[0]->up;
 
-    vec3 dir = unit_vector(lookat - origin);
+    vec3 dir = normalize(lookat - origin);
     vec3 z = cross(dir, up);
 
     if (keys.up) {
@@ -269,7 +269,7 @@ void Renderer::Render_Init() {
 
 }
 
-void Renderer::Renderer_End() {
+Renderer::~Renderer() {
     // clean up
     checkCudaErrors(cudaDeviceSynchronize());
     free_world << <1, 1 >> > (d_list, d_world, d_camera);
@@ -282,9 +282,6 @@ void Renderer::Renderer_End() {
     checkCudaErrors(cudaFree(fb));
 
     cudaDeviceReset();
-}
-
-Renderer::~Renderer() {
 }
 
 void Renderer::render() {

@@ -1,5 +1,9 @@
 #pragma once
 
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#include <curand_kernel.h>
+
 class vec3;
 class hitable;
 #define DLLEXPORT __declspec(dllexport)
