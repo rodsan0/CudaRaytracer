@@ -38,9 +38,8 @@ public:
     curandState* d_rand_state;
     curandState* d_rand_state2;
 
-    Renderer();
+    Renderer() = default;
     void Render_Init();
-    void Renderer_End();
     ~Renderer();
     void render();
 };

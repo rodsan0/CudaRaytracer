@@ -94,7 +94,6 @@ DLLEXPORT __global__ void create_world(hitable** d_list, hitable** d_world, came
     if (threadIdx.x == 0 && blockIdx.x == 0) {
         curandState local_rand_state = *rand_state;
         d_list[0] = new sphere(vec3(0, -1001.0, -1), 1000, new metal(vec3(0.7, 0.6, 0.5), 0.0));
-
         d_list[1] = new sphere(vec3(3, 1, 0), 1.0, new metal(vec3(0.7, 0.6, 0.5), 0.0));
         d_list[2] = new sphere(vec3(-3, 1, 0), 1.0, new lambertian(vec3(0.4, 0.2, 0.1)));
         d_list[3] = new sphere(vec3(3, 1, 0), 1.0, new metal(vec3(0.7, 0.6, 0.5), 0.0));
@@ -135,19 +134,22 @@ DLLEXPORT __global__ void update_world(float time, hitable** d_list) {
     ((sphere*)d_list[4])->center = vec3(-3 * sin(-1*time), .5 * cos(5 * time) + 1, -3 * cos(time));
 }
 
-
-Renderer::Renderer() {
-
-}
-
-DLLEXPORT __global__ void update_camera(float time, camera** camera, double aspect_ratio, Renderer::Keys keys) {
+DLLEXPORT __global__ void update_camera(const float time, camera** camera, const double aspect_ratio, const Renderer::Keys keys) {
+    // make copies for ease of use
     vec3 origin = camera[0]->origin;
     vec3 lookat = camera[0]->lookat;
     vec3 up = camera[0]->up;
 
+    // determine viewing direction
     vec3 dir = normalize(lookat - origin);
-    vec3 z = cross(dir, up);
+    // determine z axis direction
+    vec3 z = normalize(cross(dir, up));
 
+    // number of steps in a rotation
+    const size_t rot_steps = 100;
+    const double angle = 2 * M_PI / rot_steps;
+
+    // handle translations
     if (keys.up) {
         origin += dir;
         lookat += dir;
@@ -172,11 +174,8 @@ DLLEXPORT __global__ void update_camera(float time, camera** camera, double aspe
         origin -= up;
         lookat -= up;
     }
-
-    const size_t rot_steps = 100;
-    const double angle = 2 * M_PI / rot_steps;
-
-     
+   
+    // handle rotations
     if (keys.w) {
         lookat = vec3(
             origin.x() + (lookat.x() - origin.x()) * cos(-angle) - (lookat.y() - origin.y()) * sin(-angle),
@@ -206,11 +205,13 @@ DLLEXPORT __global__ void update_camera(float time, camera** camera, double aspe
         );
     }
 
+    // write copies back
     camera[0]->lookat = lookat;
     camera[0]->origin = origin;
 
-    float dist_to_focus = (origin - lookat).length();
-    float aperture = 0.05;
+    // determine focus distance and aperture
+    const float focus_distance = (origin - lookat).length();
+    const float aperture = 0.05;
 
     camera[0]->update_camera(
         origin,
@@ -219,10 +220,9 @@ DLLEXPORT __global__ void update_camera(float time, camera** camera, double aspe
         30.0,
         aspect_ratio,
         aperture,
-        dist_to_focus
+        focus_distance
     );
 }
-
 
 void Renderer::Render_Init() {
     tx = 4;
